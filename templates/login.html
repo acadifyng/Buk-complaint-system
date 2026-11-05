@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_macros.html" import password_field %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <img src="{{ logo_url() }}" alt="" class="auth-logo">
+  <h1>Welcome back</h1>
+  <p class="muted">Sign in to see your complaints.</p>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" maxlength="200" required autofocus autocomplete="username">
+    {{ password_field("password", "password", "Password") }}
+    <button class="btn block-btn" type="submit">Sign in</button>
+  </form>
+  <p class="muted center">New student? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+</section>
+{% endblock %}
