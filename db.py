@@ -1,17 +1,25 @@
+import os
 import sqlite3
 
 from flask import current_app, g
 
 import security as sec
 
-# Columns added after the first version. Older databases are upgraded when the app starts.
+# --- Detect Postgres ---
+DATABASE_URL = os.environ.get("DATABASE_URL")
+IS_POSTGRES = bool(DATABASE_URL)
+
+if IS_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
+
 MIGRATIONS = {
     "users": [
         ("must_change_password", "INTEGER NOT NULL DEFAULT 0"),
         ("password_changed_at", "TEXT"),
         ("last_login_at", "TEXT"), ("last_login_ip", "TEXT"),
         ("prev_login_at", "TEXT"), ("prev_login_ip", "TEXT"),
-        ("totp_secret_enc", "BLOB"),
+        ("totp_secret_enc", "BYTEA"),
         ("totp_enabled", "INTEGER NOT NULL DEFAULT 0"),
         ("totp_last_step", "INTEGER NOT NULL DEFAULT 0"),
     ],
@@ -20,7 +28,7 @@ MIGRATIONS = {
         ("anonymous", "INTEGER NOT NULL DEFAULT 0"),
         ("escalated", "INTEGER NOT NULL DEFAULT 0"),
         ("due_at", "TEXT"), ("resolved_at", "TEXT"), ("closed_at", "TEXT"),
-        ("rating", "INTEGER"), ("rating_comment_enc", "BLOB"),
+        ("rating", "INTEGER"), ("rating_comment_enc", "BYTEA"),
     ],
     "responses": [("is_internal", "INTEGER NOT NULL DEFAULT 0")],
 }
@@ -34,48 +42,132 @@ INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_history_complaint ON status_history(complaint_id)",
 ]
 
+# --- Wrapper so your old code with "?" still works on Postgres ---
+class CursorWrapper:
+    def __init__(self, cur):
+        self.cur = cur
+    def execute(self, sql, params=()):
+        if IS_POSTGRES:
+            sql = sql.replace("?", "%s")
+        return self.cur.execute(sql, params)
+    def executemany(self, sql, seq):
+        if IS_POSTGRES:
+            sql = sql.replace("?", "%s")
+        return self.cur.executemany(sql, seq)
+    def fetchone(self): return self.cur.fetchone()
+    def fetchall(self): return self.cur.fetchall()
+    @property
+    def lastrowid(self):
+        # Postgres: we use RETURNING id in add_user, for other places return 0
+        try:
+            return self.cur.fetchone()[0] if self.cur.description else 0
+        except Exception:
+            return 0
+    def __getattr__(self, name):
+        return getattr(self.cur, name)
+
+class ConnWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+    def execute(self, sql, params=()):
+        cur = CursorWrapper(self.conn.cursor())
+        cur.execute(sql, params)
+        return cur
+    def executescript(self, sql):
+        # Only used for SQLite, Postgres uses execute per statement
+        cur = self.conn.cursor()
+        for stmt in sql.split(";"):
+            if stmt.strip():
+                cur.execute(stmt)
+        return cur
+    def commit(self): return self.conn.commit()
+    def close(self): return self.conn.close()
+    def cursor(self): return CursorWrapper(self.conn.cursor())
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DATABASE"])
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        if IS_POSTGRES:
+            conn = psycopg2.connect(DATABASE_URL)
+            conn.autocommit = False
+            # DictCursor lets you use row["name"] like sqlite3.Row
+            raw = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            # Wrap to keep .execute("... ? ...") working
+            class PGConn(ConnWrapper):
+                def cursor(self):
+                    return CursorWrapper(raw)
+            g.db = PGConn(conn)
+            # Store raw for closing
+            g.db._raw_conn = conn
+        else:
+            g.db = sqlite3.connect(current_app.config["DATABASE"])
+            g.db.row_factory = sqlite3.Row
+            g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
-
 
 def close_db(_error=None):
     conn = g.pop("db", None)
     if conn is not None:
-        conn.close()
-
+        try:
+            if IS_POSTGRES and hasattr(conn, "_raw_conn"):
+                conn._raw_conn.close()
+            else:
+                conn.close()
+        except Exception:
+            pass
 
 def migrate(conn):
-    for table, columns in MIGRATIONS.items():          # table and column names are constants
-        existing = {row["name"] for row in conn.execute("PRAGMA table_info(%s)" % table)}
+    for table, columns in MIGRATIONS.items():
+        if IS_POSTGRES:
+            cur = conn.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = %s" if IS_POSTGRES else "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+                (table,))
+            existing = {row["column_name"] for row in cur.fetchall()}
+        else:
+            existing = {row["name"] for row in conn.execute("PRAGMA table_info(%s)" % table)}
         for name, definition in columns:
             if name not in existing:
+                # BLOB -> BYTEA already handled in MIGRATIONS
                 conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, name, definition))
     for statement in INDEXES:
         conn.execute(statement)
     conn.commit()
 
-
 def init_db():
     conn = get_db()
     with current_app.open_resource("schema.sql") as handle:
-        conn.executescript(handle.read().decode("utf-8"))
+        sql = handle.read().decode("utf-8")
+        if IS_POSTGRES:
+            # Fix SQLite-only syntax for Postgres
+            sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+            sql = sql.replace("AUTOINCREMENT", "")
+            sql = sql.replace("BLOB", "BYTEA")
+            # Split and run one by one
+            for stmt in sql.split(";"):
+                if stmt.strip():
+                    conn.execute(stmt)
+        else:
+            conn.executescript(sql)
     migrate(conn)
 
-
 def add_user(full_name, email, role, password, matric_no=None, must_change=False):
-    """Create an account with a hashed password. Returns the new user id."""
     conn = get_db()
     now = sec.now_iso()
-    cur = conn.execute(
-        "INSERT INTO users (full_name, email, matric_no, password_hash, role, created_at, "
-        "must_change_password, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (full_name, email.lower(), matric_no,
-         sec.hash_password(password, current_app.config.get("HASH_METHOD")), role, now,
-         1 if must_change else 0, now))
-    conn.commit()
-    return cur.lastrowid
+    if IS_POSTGRES:
+        cur = conn.execute(
+            "INSERT INTO users (full_name, email, matric_no, password_hash, role, created_at, "
+            "must_change_password, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+            (full_name, email.lower(), matric_no,
+             sec.hash_password(password, current_app.config.get("HASH_METHOD")), role, now,
+             1 if must_change else 0, now))
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        return new_id
+    else:
+        cur = conn.execute(
+            "INSERT INTO users (full_name, email, matric_no, password_hash, role, created_at, "
+            "must_change_password, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (full_name, email.lower(), matric_no,
+             sec.hash_password(password, current_app.config.get("HASH_METHOD")), role, now,
+             1 if must_change else 0, now))
+        conn.commit()
+        return cur.lastrowid
