@@ -6,14 +6,13 @@ import hmac
 import os
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, date
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 
 import db
 import rbac
 import security as sec
-
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -61,8 +60,11 @@ def create_app(test_config=None):
     def inject():
         unread = 0
         if g.get("user"):
-            unread = db.get_db().execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
-                                         (g.user["id"],)).fetchone()[0]
+            try:
+                unread = db.get_db().execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
+                                             (g.user["id"],)).fetchone()[0]
+            except Exception:
+                unread = 0
         return {"unread_count": unread, "idle_minutes": app.config["IDLE_MINUTES"]}
 
     app.jinja_env.globals.update(
@@ -75,11 +77,26 @@ def create_app(test_config=None):
 
     @app.template_filter("when")
     def when(value):
-        """2026-10-31 14:20:05 -> 31 Oct 2026, 14:20"""
+        """2026-10-31 14:20:05 -> 31 Oct 2026, 14:20
+        FIXED FOR POSTGRES: Postgres returns datetime object, SQLite returns string.
+        This handles both.
+        """
+        if value is None:
+            return "-"
+        # Postgres already gives datetime / date object
+        if isinstance(value, (datetime, date)):
+            if isinstance(value, datetime):
+                return value.strftime("%d %b %Y, %H:%M")
+            return value.strftime("%d %b %Y")
+        # SQLite gives string
         try:
-            return datetime.strptime(value, sec.TIME_FORMAT).strftime("%d %b %Y, %H:%M")
+            return datetime.strptime(str(value), sec.TIME_FORMAT).strftime("%d %b %Y, %H:%M")
         except (TypeError, ValueError):
-            return value or "-"
+            try:
+                # Try ISO format fallback e.g. 2026-10-31T14:20:05
+                return datetime.fromisoformat(str(value).replace("Z", "")).strftime("%d %b %Y, %H:%M")
+            except Exception:
+                return str(value) or "-"
 
     # ------------------------------------------------------- request lifecycle
     @app.before_request
@@ -159,7 +176,6 @@ def create_app(test_config=None):
         app.register_blueprint(module.bp)
 
     return app
-
 
 if __name__ == "__main__":
     # For development. For real use, run behind HTTPS (see README).
