@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Two-step verification{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <h1>Two-step verification</h1>
+  <p class="muted">Open your authenticator app and enter the 6-digit code. You can also use one of your backup codes.</p>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="code">Code</label>
+    <input id="code" name="code" inputmode="text" maxlength="12" required autofocus autocomplete="one-time-code" class="code-input">
+    <button class="btn block-btn" type="submit">Verify</button>
+  </form>
+  <p class="muted center"><a href="{{ url_for('auth.login') }}">Back to sign in</a></p>
+</section>
+{% endblock %}

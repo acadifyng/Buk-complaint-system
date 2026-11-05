@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Administration{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Administration</h1><p class="muted">Statistics only. Administrators cannot open complaint content.</p></div>
+  <div class="btn-row"><a class="btn small ghost" href="{{ url_for('admin.stats_csv') }}">Export statistics</a><a class="btn small" href="{{ url_for('admin.users') }}">Accounts</a></div></div>
+{% if cards.no_2fa %}<div class="flash warn"><span>{{ cards.no_2fa }} staff or admin account{{ '' if cards.no_2fa == 1 else 's' }} without two-step verification.</span></div>{% endif %}
+<div class="stat-row four">
+  <div class="stat"><span class="num" data-count="{{ cards.total }}">0</span><span>All complaints</span></div>
+  <div class="stat"><span class="num" data-count="{{ cards.open }}">0</span><span>Open</span></div>
+  <div class="stat {{ 'alert' if cards.overdue else '' }}"><span class="num" data-count="{{ cards.overdue }}">0</span><span>Overdue</span></div>
+  <div class="stat"><span class="num" data-count="{{ cards.escalated }}">0</span><span>Escalated</span></div>
+</div>
+<div class="stat-row four">
+  <div class="stat"><span class="num">{{ cards.rating if cards.rating else '-' }}</span><span>Average rating ({{ cards.rated }})</span></div>
+  <div class="stat {{ 'alert' if cards.locked else '' }}"><span class="num" data-count="{{ cards.locked }}">0</span><span>Locked accounts</span></div>
+</div>
+
+<div class="two-col">
+  <section class="card"><h2>Complaints by category</h2>
+    {% set mx = (cat_totals|map(attribute=1)|max) or 1 %}
+    <svg class="chart" viewBox="0 0 420 {{ cat_totals|length * 44 }}" role="img" aria-label="Complaints by category">
+      {% for label, n in cat_totals %}
+      <text x="0" y="{{ loop.index0 * 44 + 16 }}" class="ct">{{ label }}</text>
+      <rect x="0" y="{{ loop.index0 * 44 + 22 }}" height="14" rx="7" width="{{ (n / mx * 360)|round(1) }}" class="bar bar{{ loop.index }}"/>
+      <text x="{{ (n / mx * 360)|round(1) + 8 }}" y="{{ loop.index0 * 44 + 34 }}" class="ct">{{ n }}</text>
+      {% endfor %}
+    </svg>
+  </section>
+  <section class="card"><h2>Status mix</h2>
+    {% set total = (status_totals.values()|sum) or 1 %}
+    {% set ns = namespace(offset=25) %}
+    <div class="donut-wrap">
+      <svg viewBox="0 0 42 42" class="donut" role="img" aria-label="Status mix">
+        <circle cx="21" cy="21" r="15.9155" fill="none" class="donut-bg" stroke-width="6"/>
+        {% for s, n in status_totals.items() %}
+        {% set pct = (n / total * 100)|round(2) %}
+        <circle cx="21" cy="21" r="15.9155" fill="none" stroke-width="6" class="seg seg{{ loop.index }}" stroke-dasharray="{{ pct }} {{ 100 - pct }}" stroke-dashoffset="{{ ns.offset }}"/>
+        {% set ns.offset = ns.offset - pct %}
+        {% endfor %}
+      </svg>
+      <ul class="legend">{% for s, n in status_totals.items() %}<li><span class="sw seg{{ loop.index }}"></span>{{ s }} <strong>{{ n }}</strong></li>{% endfor %}</ul>
+    </div>
+  </section>
+</div>
+
+<div class="two-col">
+  <section class="card"><h2>New complaints, last 14 days</h2>
+    {% set tmx = (trend|map(attribute=1)|max) or 1 %}
+    <svg class="chart" viewBox="0 0 420 110" role="img" aria-label="Complaints per day">
+      {% for day, n in trend %}
+      <rect x="{{ loop.index0 * 30 + 4 }}" y="{{ 90 - (n / tmx * 80) }}" width="22" height="{{ (n / tmx * 80)|round(1) }}" rx="4" class="bar bar2"/>
+      <text x="{{ loop.index0 * 30 + 15 }}" y="105" class="ct small-t" text-anchor="middle">{{ day[8:] }}</text>
+      {% endfor %}
+    </svg>
+  </section>
+  <section class="card"><h2>Open work by office</h2>
+    {% set wmx = (workload.values()|max) or 1 %}
+    <svg class="chart" viewBox="0 0 420 {{ workload|length * 44 }}" role="img" aria-label="Open complaints per office">
+      {% for label, n in workload.items() %}
+      <text x="0" y="{{ loop.index0 * 44 + 16 }}" class="ct">{{ label }}</text>
+      <rect x="0" y="{{ loop.index0 * 44 + 22 }}" height="14" rx="7" width="{{ (n / wmx * 360)|round(1) }}" class="bar bar3"/>
+      <text x="{{ (n / wmx * 360)|round(1) + 8 }}" y="{{ loop.index0 * 44 + 34 }}" class="ct">{{ n }}</text>
+      {% endfor %}
+    </svg>
+  </section>
+</div>
+
+<div class="two-col">
+  <section class="card"><h2>Average time to resolve</h2>
+    {% if avg_hours %}<ul class="plain">{% for k, v in avg_hours.items() %}<li>{{ k }}: <strong>{{ v }} hours</strong></li>{% endfor %}</ul>{% else %}<p class="muted">No resolved complaints yet.</p>{% endif %}</section>
+  <section class="card"><h2>Accounts</h2><ul class="plain">{% for label, n in role_counts.items() %}<li>{{ label }}: <strong>{{ n }}</strong></li>{% endfor %}</ul></section>
+</div>
+{% endblock %}

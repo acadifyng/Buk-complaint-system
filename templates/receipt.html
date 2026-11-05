@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ c['reference'] }}{% endblock %}
+{% block content %}
+<section class="card receipt">
+  <img src="{{ logo_url() }}" alt="" class="auth-logo">
+  <h1>Complaint receipt</h1>
+  <div class="facts">
+    <div class="fact"><b>Reference</b>{{ c['reference'] }}</div>
+    <div class="fact"><b>Submitted</b>{{ c['created_at']|when }}</div>
+    <div class="fact"><b>Category</b>{{ category_label(c['category']) }}</div>
+    <div class="fact"><b>Handled by</b>{{ handler }}</div>
+    <div class="fact"><b>Status</b>{{ c['status'] }}</div>
+    <div class="fact"><b>Response due</b>{{ c['due_at']|when }}</div>
+  </div>
+  <p class="muted small">Keep this reference number to follow your complaint. The complaint text is not printed on this receipt.</p>
+  <button type="button" class="btn small no-print" data-print>Print</button>
+</section>
+{% endblock %}

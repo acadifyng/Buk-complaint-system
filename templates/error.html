@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="auth-card center"><div class="big-code">{{ code }}</div><h1>{{ title }}</h1><p class="muted">{{ message }}</p>
+<p><a class="btn" href="{{ url_for('public.home') }}">Go to home page</a></p></section>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import password_field %}
+{% block title %}My account{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>My account</h1>
+  <div class="facts">
+    <div class="fact"><b>Name</b>{{ g.user['full_name'] }}</div>
+    <div class="fact"><b>Email</b>{{ g.user['email'] }}</div>
+    <div class="fact"><b>Role</b>{{ role_label(g.user['role']) }}</div>
+    {% if g.user['matric_no'] %}<div class="fact"><b>Matric number</b>{{ g.user['matric_no'] }}</div>{% endif %}
+    <div class="fact"><b>Last sign-in before this one</b>{{ g.user['prev_login_at']|when }}{% if g.user['prev_login_ip'] %}<br><span class="muted small">from {{ g.user['prev_login_ip'] }}</span>{% endif %}</div>
+    <div class="fact"><b>Password last changed</b>{{ g.user['password_changed_at']|when }}</div>
+  </div>
+  <p class="muted small">If you do not recognise the last sign-in, change your password now.</p>
+  <p><a class="btn small" href="{{ url_for('auth.change_password') }}">Change password</a></p>
+</section>
+
+<section class="card">
+  <h2>Two-step verification</h2>
+  {% if g.user['totp_enabled'] %}
+    <p><span class="badge s-resolved">On</span> You need a code from your authenticator app each time you sign in. Backup codes left: <strong>{{ codes_left }}</strong>.</p>
+    <form method="post" action="{{ url_for('auth.twofa_disable') }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ password_field("disable_pw", "password", "Enter your password to turn it off") }}
+      <button class="btn small danger" type="submit">Turn off</button>
+    </form>
+  {% else %}
+    <p><span class="badge s-submitted">Off</span> Add a second step so a stolen password is not enough to get into your account.{% if g.user['role'] != 'student' %} This is strongly recommended for staff and administrators.{% endif %}</p>
+    <a class="btn small" href="{{ url_for('auth.twofa_setup') }}">Set up two-step verification</a>
+  {% endif %}
+</section>
+{% endblock %}

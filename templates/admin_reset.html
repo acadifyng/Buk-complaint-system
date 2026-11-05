@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Password reset{% endblock %}
+{% block content %}
+<section class="card narrow-card">
+  <h1>Temporary password</h1>
+  <p>A new temporary password was set for <strong>{{ target['full_name'] }}</strong> ({{ target['email'] }}). Give it to them privately. <strong>It will not be shown again.</strong> They must choose their own password when they sign in.</p>
+  <div class="secret-box"><code id="temp-pw">{{ temp }}</code><button type="button" class="btn small" data-copy="temp-pw">Copy</button></div>
+  <p><a class="btn small ghost" href="{{ url_for('admin.users') }}">Back to accounts</a></p>
+</section>
+{% endblock %}

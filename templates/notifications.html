@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="row-between"><h1>Notifications</h1>
+    <form method="post" action="{{ url_for('notify.read_all') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn small ghost" type="submit">Mark all as read</button></form></div>
+  {% for n in rows %}
+  <a class="note {{ '' if n['is_read'] else 'unread' }}" href="{{ url_for('notify.open_one', note_id=n['id']) }}"><span>{{ n['message'] }}</span><span class="muted small">{{ n['created_at']|when }}</span></a>
+  {% else %}<p class="muted">Nothing here yet.</p>{% endfor %}
+</section>
+{% endblock %}

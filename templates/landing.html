@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Speak up. We will listen.{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="hero-copy">
+    <span class="chip">Bayero University, Kano</span>
+    <h1>Speak up. <span class="accent">We will listen.</span></h1>
+    <p>A secure place for BUK students to report hostel, security, academic and welfare problems, follow every step, and get answers from the right office.</p>
+    <div class="hero-actions">
+      <a class="btn big" href="{{ url_for('auth.register') }}">Submit a complaint</a>
+      <a class="btn big ghost" href="{{ url_for('auth.login') }}">Sign in</a>
+    </div>
+    <ul class="hero-points">
+      <li>&#128274; Encrypted and private</li><li>&#128269; Track in real time</li><li>&#128372; Anonymous option</li>
+    </ul>
+  </div>
+  <div class="hero-card">
+    <img src="{{ logo_url() }}" alt="Bayero University, Kano" class="hero-logo">
+    <div class="mini-status"><span class="badge s-submitted">Submitted</span><span class="badge s-under-review">Under Review</span><span class="badge s-in-progress">In Progress</span><span class="badge s-resolved">Resolved</span></div>
+    <p class="muted small">Every complaint gets a private reference number and a clear status.</p>
+  </div>
+</section>
+
+<section class="block">
+  <h2 class="center">What can you report?</h2>
+  <div class="grid4">
+    {% for key, label in categories.items() %}
+    <div class="feature">
+      <div class="feature-icon">{{ {'hostel': '&#127968;', 'security': '&#128737;', 'academic': '&#127891;', 'welfare': '&#128154;'}[key]|safe }}</div>
+      <h3>{{ label }}</h3><p class="muted">{{ hints[key] }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="block alt-block">
+  <h2 class="center">How it works</h2>
+  <ol class="steps4">
+    <li><span>1</span><h3>Create an account</h3><p class="muted">Use your matriculation number and email.</p></li>
+    <li><span>2</span><h3>Submit your complaint</h3><p class="muted">Add details and optional evidence.</p></li>
+    <li><span>3</span><h3>The right office responds</h3><p class="muted">It is routed automatically.</p></li>
+    <li><span>4</span><h3>Confirm and rate</h3><p class="muted">Close it when you are satisfied.</p></li>
+  </ol>
+</section>
+
+<section class="block">
+  <h2 class="center">Your privacy and safety</h2>
+  <div class="grid3">
+    <div class="feature"><h3>Encrypted</h3><p class="muted">Complaint text and evidence files are encrypted before they are stored.</p></div>
+    <div class="feature"><h3>Need-to-know access</h3><p class="muted">Only the office responsible for your complaint can open it. Administrators cannot read it.</p></div>
+    <div class="feature"><h3>Anonymous reporting</h3><p class="muted">Hide your name from staff when you report sensitive matters. You can still track the case.</p></div>
+  </div>
+</section>
+
+<section class="block narrow-block">
+  <h2 class="center">Frequently asked questions</h2>
+  <details><summary>Who can see my complaint?</summary><p>You and the one office it is assigned to. Staff in other offices and system administrators cannot open it.</p></details>
+  <details><summary>Can I report without showing my name?</summary><p>Yes. Tick "Hide my name from staff" when you submit. You still need an account so you can follow progress.</p></details>
+  <details><summary>How long will I wait for an answer?</summary><p>Each complaint has a response deadline based on its priority: 24 hours for urgent, 48 hours for high, and a few days for normal complaints.</p></details>
+  <details><summary>What if I am not happy with the outcome?</summary><p>Reopen the complaint, or ask the office to send it to the Dean of Student Affairs.</p></details>
+</section>
+{% endblock %}

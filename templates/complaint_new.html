@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}New complaint{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Submit a complaint</h1>
+  <p class="muted">Your complaint is encrypted and visible only to you and the office responsible for it.</p>
+  <form method="post" enctype="multipart/form-data" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Category</label>
+    <div class="cat-grid">
+      {% for key, label in categories.items() %}
+      <label class="cat-card"><input type="radio" name="category" value="{{ key }}" required><span class="cat-body"><strong>{{ label }}</strong><small>{{ hints[key] }}</small></span></label>
+      {% endfor %}
+    </div>
+    <div id="subtype-box" hidden>
+      <label for="subcategory">Type of academic issue</label>
+      <select id="subcategory" name="subcategory">
+        <option value="">Choose the issue type</option>
+        {% for key, item in subtypes.items() %}<option value="{{ key }}">{{ item[0] }}</option>{% endfor %}
+      </select>
+    </div>
+    <label for="title">Short title</label>
+    <input id="title" name="title" maxlength="120" required data-counter="title-count">
+    <div class="counter"><span id="title-count">0</span>/120</div>
+    <label for="description">Describe the problem (20 to 3000 characters)</label>
+    <textarea id="description" name="description" rows="8" maxlength="3000" required data-counter="desc-count"></textarea>
+    <div class="counter"><span id="desc-count">0</span>/3000</div>
+    <label for="attachments">Evidence (optional)</label>
+    <input id="attachments" name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.pdf" data-max-files="{{ max_files }}">
+    <p class="muted small">Up to {{ max_files }} files, 2 MB each. PNG, JPG or PDF only. Files are encrypted.</p>
+    <div id="file-note" class="file-note" hidden></div>
+    <div class="options">
+      <label class="check"><input type="checkbox" name="anonymous" value="1"> <span><strong>Hide my name from staff</strong><br><small>Staff will see "Anonymous student". You can still track the case.</small></span></label>
+      <label class="check"><input type="checkbox" name="urgent" value="1"> <span><strong>This is urgent</strong><br><small>Use only for safety or health emergencies. You will get a faster response deadline.</small></span></label>
+    </div>
+    <button class="btn" type="submit">Submit complaint</button>
+  </form>
+</section>
+{% endblock %}

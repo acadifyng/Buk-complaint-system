@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.home') }}">&larr; Administration</a></p>
+<section class="card">
+  <div class="row-between"><h1>Audit log</h1><a class="btn small ghost" href="{{ url_for('admin.audit_csv') }}">Export CSV</a></div>
+  <form method="get" class="filters">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search user, reference or IP" aria-label="Search">
+    <select name="action" aria-label="Action"><option value="">All actions</option>{% for a in actions %}<option value="{{ a }}" {{ 'selected' if a == action }}>{{ a }}</option>{% endfor %}</select>
+    <button class="btn small" type="submit">Filter</button>
+  </form>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Time (UTC)</th><th>User</th><th>Action</th><th>Complaint</th><th>IP</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td>{{ r['ts'] }}</td><td>{{ r['actor'] or '-' }}</td><td><code>{{ r['action'] }}</code></td><td>{{ r['complaint_ref'] or '-' }}</td><td>{{ r['ip'] or '-' }}</td><td>{{ r['detail'] or '' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {{ pager(page) }}
+</section>
+{% endblock %}

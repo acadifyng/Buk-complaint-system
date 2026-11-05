@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_macros.html" import password_field, pager %}
+{% block title %}Accounts{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.home') }}">&larr; Administration</a></p>
+<section class="card">
+  <h1>Accounts</h1>
+  <form method="get" class="filters">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search name or email" aria-label="Search">
+    <select name="role" aria-label="Role"><option value="">All roles</option>{% for r in ['student', 'admin'] + STAFF_ROLES %}<option value="{{ r }}" {{ 'selected' if role_filter == r }}>{{ role_label(r) }}</option>{% endfor %}</select>
+    <button class="btn small" type="submit">Filter</button>
+  </form>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>2FA</th><th>Last sign-in</th><th></th></tr></thead>
+    <tbody>
+    {% for u in accounts %}
+      <tr>
+        <td>{{ u['full_name'] }}</td><td>{{ u['email'] }}</td><td>{{ role_label(u['role']) }}</td>
+        <td>{% if not u['is_active'] %}<span class="badge s-closed">Inactive</span>{% elif u['locked_until'] and u['locked_until'] > now %}<span class="badge late-badge">Locked</span>{% else %}<span class="badge s-resolved">Active</span>{% endif %}{% if u['must_change_password'] %} <span class="tag-internal">Must change password</span>{% endif %}</td>
+        <td>{{ 'On' if u['totp_enabled'] else 'Off' }}</td>
+        <td>{{ u['last_login_at']|when }}</td>
+        <td class="actions">
+          {% if u['id'] != g.user['id'] %}
+          <form method="post" action="{{ url_for('admin.user_toggle', user_id=u['id']) }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link" type="submit">{{ 'Deactivate' if u['is_active'] else 'Activate' }}</button></form>
+          <form method="post" action="{{ url_for('admin.user_unlock', user_id=u['id']) }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link" type="submit">Unlock</button></form>
+          <form method="post" action="{{ url_for('admin.user_reset', user_id=u['id']) }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link" type="submit">Reset password</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {{ pager(page) }}
+</section>
+<section class="card">
+  <h2>Create a staff account</h2>
+  <p class="muted small">The person must choose their own new password the first time they sign in.</p>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="full_name">Full name</label><input id="full_name" name="full_name" maxlength="100" required>
+    <label for="email">Email</label><input id="email" name="email" type="email" maxlength="200" required>
+    <label for="role">Role</label>
+    <select id="role" name="role" required>{% for r in roles %}<option value="{{ r }}">{{ role_label(r) }}</option>{% endfor %}</select>
+    {{ password_field("password", "password", "Temporary password", "new-password", meter=True) }}
+    <button type="button" class="btn small ghost" data-generate-password="password">Generate a strong password</button>
+    <button class="btn" type="submit">Create account</button>
+  </form>
+</section>
+{% endblock %}

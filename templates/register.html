@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import password_field %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <img src="{{ logo_url() }}" alt="" class="auth-logo">
+  <h1>Student registration</h1>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="full_name">Full name</label>
+    <input id="full_name" name="full_name" maxlength="100" required autocomplete="name">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" maxlength="200" required autocomplete="email">
+    <label for="matric_no">Matriculation number</label>
+    <input id="matric_no" name="matric_no" maxlength="30" required>
+    {{ password_field("password", "password", "Password", "new-password", meter=True) }}
+    {{ password_field("confirm", "confirm", "Confirm password", "new-password") }}
+    <div class="match-note" id="match-note" hidden></div>
+    <button class="btn block-btn" type="submit">Create account</button>
+  </form>
+  <p class="muted center">Already registered? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+</section>
+{% endblock %}
